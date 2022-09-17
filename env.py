@@ -1,12 +1,7 @@
-import numpy as np
 import matplotlib.pyplot as plt
-import PIL.Image as Image
 import pandas as pd
+import numpy as np
 import gym
-import random
-
-from gym import Env, spaces
-import time
 
 INITIAL_PORTFOLIO_ALLOCATION_PERCENTAGE_STOCKS = 40.
 # USD value
@@ -16,6 +11,14 @@ N_DISCRETE_ACTIONS = 101
 WINDOW_SIZE = 10
 # action frequency in days
 STEP_SIZE = 70
+# normalize the data
+BALANCE_NORM_FACTOR = 1e8
+STOCK_NORM_FACTOR = 2e5
+UPRO_MAX = 23.28
+TMF_MAX = 19.02
+
+
+
 
 
 class PortfolioEnv(gym.Env):
@@ -37,17 +40,18 @@ class PortfolioEnv(gym.Env):
         self.upro_df = pd.read_csv('./data/UPROSIM_preprocessed.csv')
         self.tmf_df = pd.read_csv('./data/TMFSIM_preprocessed.csv')
         self.end_day = self.tmf_df['Price'].to_numpy().shape[0]
-        self.action_space = spaces.Discrete(N_DISCRETE_ACTIONS)
+        self.action_space = gym.spaces.Discrete(N_DISCRETE_ACTIONS)
         self.num_tmf_history = []
         self.num_upro_history = []
         # Example for using image as input:
         high = np.zeros(5 + 2 * WINDOW_SIZE)
         high[0:] = np.inf
         high[4] = 100
-        self.observation_space = spaces.Box(low=0, high=high, shape=(5 + 2 * WINDOW_SIZE,))
+        self.observation_space = gym.spaces.Box(low=0, high=high, shape=(5 + 2 * WINDOW_SIZE,))
 
     def step(self, action):
         # Execute one time step within the environment
+        info = {'none': None}
         self.allocation = action
         self.num_stocks_upro, self.num_stocks_tmf, remainder = self.calculate_num_of_stocks()
         self.num_tmf_history.append(self.num_stocks_tmf)
@@ -59,11 +63,12 @@ class PortfolioEnv(gym.Env):
         self.balance = remainder + self.invested
         if self.current_day >= self.end_day:
             self.done = True
-            return np.zeros(self.observation_space.shape), self.balance, self.done
+            return np.zeros(self.observation_space.shape), self.balance / BALANCE_NORM_FACTOR, self.done, info
         reward = self.balance
         next_state = self.get_state()
 
-        return next_state, reward, self.done
+        # TODO: add info if needed (e.g. for debugging)
+        return next_state, reward / BALANCE_NORM_FACTOR, self.done, info
 
     def reset(self, **kwargs):
         # Reset the state of the environment to an initial state
@@ -106,14 +111,15 @@ class PortfolioEnv(gym.Env):
         # get a vector of shape (2 * WINDOWS_SIZE,) of a concatenation of (UTF_price, TMF_price) of each day
         start_pos = self.current_day - WINDOW_SIZE
         end_pos = self.current_day
-        history = np.stack([self.upro_df['Price'].to_numpy()[start_pos:end_pos],
-                            self.tmf_df['Price'].to_numpy()[start_pos:end_pos]]).T.flatten()
+        history = np.stack([self.upro_df['Price'].to_numpy()[start_pos:end_pos] / UPRO_MAX,
+                            self.tmf_df['Price'].to_numpy()[start_pos:end_pos]]).T.flatten() / TMF_MAX
 
-        return np.concatenate([np.array([self.balance, self.invested, self.num_stocks_upro,
-                                         self.num_stocks_tmf, self.allocation]), history])
+        return np.concatenate([np.array([self.balance / BALANCE_NORM_FACTOR, self.invested / BALANCE_NORM_FACTOR, self.num_stocks_upro / STOCK_NORM_FACTOR,
+                                         self.num_stocks_tmf / STOCK_NORM_FACTOR, self.allocation / 100.]), history])
 
 
-def main(random_action=True):
+def run(random_action=True):
+    """Run the environment."""
     stock_env = PortfolioEnv()
     stock_env.reset(seed=0)
     done = False
@@ -122,8 +128,8 @@ def main(random_action=True):
         if random_action:
             action = stock_env.action_space.sample()
         else:
-            action = 45.
-        next_state, reward, done = stock_env.step(action=action)
+            action = 68.
+        next_state, reward, done, _ = stock_env.step(action=action)
         rewards.append(reward)
         if done:
             # stock_env.render()
@@ -135,7 +141,7 @@ def main(random_action=True):
 if __name__ == '__main__':
     rewards = []
     for _ in range(1):
-        reward = main(True)
+        reward = run(random_action=False)
         rewards.append(reward)
     print(np.mean(rewards))
 
