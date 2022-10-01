@@ -1,6 +1,7 @@
 import matplotlib.pyplot as plt
 import pandas as pd
 import numpy as np
+import pickle
 import gym
 
 INITIAL_PORTFOLIO_ALLOCATION_PERCENTAGE_STOCKS = 40.
@@ -10,7 +11,7 @@ N_DISCRETE_ACTIONS = 101
 # trading days
 WINDOW_SIZE = 10
 # action frequency in days
-STEP_SIZE = 70
+STEP_SIZE = 1
 # normalize the data
 BALANCE_NORM_FACTOR = 1e8
 STOCK_NORM_FACTOR = 2e5
@@ -25,7 +26,7 @@ class PortfolioEnv(gym.Env):
     """Custom Environment that follows gym interface"""
     metadata = {'render.modes': ['human']}
 
-    def __init__(self):
+    def __init__(self, upro_df, tmf_df):
         super(PortfolioEnv, self).__init__()
         # Define action and observation space
         # They must be gym.spaces objects
@@ -37,8 +38,8 @@ class PortfolioEnv(gym.Env):
         self.num_stocks_upro = 0
         self.invested = 0.
         self.current_day = WINDOW_SIZE
-        self.upro_df = pd.read_csv('./data/UPROSIM_preprocessed.csv')
-        self.tmf_df = pd.read_csv('./data/TMFSIM_preprocessed.csv')
+        self.upro_df = upro_df
+        self.tmf_df = tmf_df
         self.end_day = self.tmf_df['Price'].to_numpy().shape[0]
         self.action_space = gym.spaces.Discrete(N_DISCRETE_ACTIONS)
         self.num_tmf_history = []
@@ -61,12 +62,12 @@ class PortfolioEnv(gym.Env):
         upro_price = self.upro_df['Price'].to_numpy()[self.current_day if self.current_day < self.end_day else -1]
         self.invested = (upro_price * self.num_stocks_upro + tmf_price * self.num_stocks_tmf)
         self.balance = remainder + self.invested
+        reward = self.balance
         if self.current_day >= self.end_day:
             self.done = True
-            return np.zeros(self.observation_space.shape), self.balance / BALANCE_NORM_FACTOR, self.done, info
-        reward = self.balance
-        next_state = self.get_state()
+            return np.zeros(self.observation_space.shape), reward / BALANCE_NORM_FACTOR, self.done, info
 
+        next_state = self.get_state()
         # TODO: add info if needed (e.g. for debugging)
         return next_state, reward / BALANCE_NORM_FACTOR, self.done, info
 
@@ -90,16 +91,22 @@ class PortfolioEnv(gym.Env):
         remainder = self.balance - (upro_price * num_stocks_upro + tmf_price * num_stocks_tmf)
         return num_stocks_upro, num_stocks_tmf, remainder
 
-    def render(self, mode='human', close=False):
+    def render(self, mode='human', close=False, compare_to_balance=45.):
         if self.done:
             self.current_day = WINDOW_SIZE
             self.balance = INITIAL_PORTFOLIO_BALANCE
             self.allocation = INITIAL_PORTFOLIO_ALLOCATION_PERCENTAGE_STOCKS
-            num_stocks_upro, num_stocks_tmf, remainder = self.calculate_num_of_stocks()
             tmf_price = self.tmf_df['Price'].to_numpy()
             upro_price = self.upro_df['Price'].to_numpy()
-            default_allocation_balance = num_stocks_tmf * tmf_price + num_stocks_upro * upro_price
-            agent_balance = tmf_price[WINDOW_SIZE:] * np.array(self.num_tmf_history) + upro_price[WINDOW_SIZE:] * np.array(self.num_upro_history)
+
+            # get balanced history
+            truncated_upro_history, truncated_tmf_history = self.get_balanced_history(compare_to_balance)
+            default_allocation_balance = tmf_price[WINDOW_SIZE:] * truncated_tmf_history + upro_price[
+                                                                              WINDOW_SIZE:] * truncated_upro_history
+
+            truncated_tmf_history = np.repeat(np.array(self.num_tmf_history), STEP_SIZE)[:self.end_day - WINDOW_SIZE]
+            truncated_upro_history = np.repeat(np.array(self.num_upro_history), STEP_SIZE)[:self.end_day - WINDOW_SIZE]
+            agent_balance = tmf_price[WINDOW_SIZE:] * truncated_tmf_history + upro_price[WINDOW_SIZE:] * truncated_upro_history
             plt.plot(agent_balance)
             plt.plot(default_allocation_balance)
             plt.show()
@@ -117,10 +124,29 @@ class PortfolioEnv(gym.Env):
         return np.concatenate([np.array([self.balance / BALANCE_NORM_FACTOR, self.invested / BALANCE_NORM_FACTOR, self.num_stocks_upro / STOCK_NORM_FACTOR,
                                          self.num_stocks_tmf / STOCK_NORM_FACTOR, self.allocation / 100.]), history])
 
+    def get_balanced_history(self, compare_to_balance=45.):
+        truncated_upro_history = None
+        truncated_tmf_history = None
+        stock_env = PortfolioEnv(upro_df=self.upro_df, tmf_df=self.tmf_df)
+        stock_env.reset(seed=0)
+        done = False
+        while not done:
+            action = compare_to_balance
+            next_state, reward, done, _ = stock_env.step(action=action)
+            if done:
+                truncated_upro_history = np.repeat(np.array(stock_env.num_upro_history), STEP_SIZE)[
+                                         :self.end_day - WINDOW_SIZE]
+                truncated_tmf_history = np.repeat(np.array(stock_env.num_tmf_history), STEP_SIZE)[
+                                        :self.end_day - WINDOW_SIZE]
 
-def run(random_action=True):
+        return truncated_upro_history, truncated_tmf_history
+
+
+def run(random_action=False):
     """Run the environment."""
-    stock_env = PortfolioEnv()
+    upro_df = pd.read_csv('./data/UPROSIM_preprocessed.csv')
+    tmf_df = pd.read_csv('./data/TMFSIM_preprocessed.csv')
+    stock_env = PortfolioEnv(upro_df=upro_df, tmf_df=tmf_df)
     stock_env.reset(seed=0)
     done = False
     rewards = []
@@ -128,7 +154,7 @@ def run(random_action=True):
         if random_action:
             action = stock_env.action_space.sample()
         else:
-            action = 68.
+            action = 45.
         next_state, reward, done, _ = stock_env.step(action=action)
         rewards.append(reward)
         if done:
