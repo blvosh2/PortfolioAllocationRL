@@ -34,5 +34,5 @@ def infer(from_index=6714):
 
 
 if __name__ == '__main__':
-    # train()
-    infer(from_index=6714)
+    train()
+    # infer(from_index=6714)
