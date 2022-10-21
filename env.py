@@ -15,8 +15,8 @@ STEP_SIZE = 70
 # normalize the data
 BALANCE_NORM_FACTOR = 1e8
 STOCK_NORM_FACTOR = 2e5
-UPRO_MAX = 23.28
-TMF_MAX = 19.02
+UPRO_MAX = 34.6
+TMF_MAX = 23.2
 
 
 class PortfolioEnv(gym.Env):
@@ -29,36 +29,35 @@ class PortfolioEnv(gym.Env):
         # They must be gym.spaces objects
         # Example when using discrete actions:
         self.allocation = None
-        self.balance = None
         self.done = False
         self.num_stocks_tmf = 0
         self.num_stocks_upro = 0
-        self.invested = 0.
+        self.total_change = 1.
         self.current_day = WINDOW_SIZE
         self.upro_df = upro_df
         self.tmf_df = tmf_df
-        self.end_day = self.tmf_df['Price'].to_numpy().shape[0]
+        self.end_day = self.tmf_df['Change'].to_numpy().shape[0]
         self.action_space = gym.spaces.Discrete(N_DISCRETE_ACTIONS)
         self.num_tmf_history = []
         self.num_upro_history = []
         # Example for using image as input:
-        high = np.zeros(5 + 2 * WINDOW_SIZE)
+        high = np.zeros(4 + 2 * WINDOW_SIZE)
         high[0:] = np.inf
         high[4] = 100
-        self.observation_space = gym.spaces.Box(low=0, high=high, shape=(5 + 2 * WINDOW_SIZE,))
+        self.observation_space = gym.spaces.Box(low=0, high=high, shape=(4 + 2 * WINDOW_SIZE,))
 
     def step(self, action):
         # Execute one time step within the environment
         info = {'none': None}
         self.allocation = action
-        self.num_stocks_upro, self.num_stocks_tmf, remainder = self.calculate_num_of_stocks()
+        self.num_stocks_upro, self.num_stocks_tmf, _ = self.calculate_num_of_stocks()
         self.num_tmf_history.append(self.num_stocks_tmf)
         self.num_upro_history.append(self.num_stocks_upro)
         self.current_day += STEP_SIZE
-        tmf_price = self.tmf_df['Price'].to_numpy()[self.current_day if self.current_day < self.end_day else -1]
-        upro_price = self.upro_df['Price'].to_numpy()[self.current_day if self.current_day < self.end_day else -1]
-        self.invested = (upro_price * self.num_stocks_upro + tmf_price * self.num_stocks_tmf)
-        self.balance = remainder + self.invested
+        df_index = self.current_day if self.current_day < self.end_day else -1
+        tmf_change = np.prod((self.tmf_df['Change'].to_numpy()[df_index - STEP_SIZE:df_index] + 100.) / 100.)
+        upro_change = np.prod((self.upro_df['Change'].to_numpy()[df_index - STEP_SIZE:df_index] + 100.) / 100.)
+        self.total_change *= (tmf_change * self.num_stocks_tmf + upro_change * self.num_stocks_upro) / (self.num_stocks_tmf + self.num_stocks_upro)
         reward = self.balance
         if self.current_day >= self.end_day:
             self.done = True
@@ -81,8 +80,8 @@ class PortfolioEnv(gym.Env):
         return state
 
     def calculate_num_of_stocks(self):
-        tmf_price = self.tmf_df['Price'].to_numpy()[self.current_day]
-        upro_price = self.upro_df['Price'].to_numpy()[self.current_day]
+        tmf_price = self.tmf_df['Change'].to_numpy()[self.current_day]
+        upro_price = self.upro_df['Change'].to_numpy()[self.current_day]
         num_stocks_tmf = (self.balance * (1. - (self.allocation / 100.))) // tmf_price
         num_stocks_upro = (self.balance * (self.allocation / 100.)) // upro_price
         remainder = self.balance - (upro_price * num_stocks_upro + tmf_price * num_stocks_tmf)
@@ -93,8 +92,8 @@ class PortfolioEnv(gym.Env):
             self.current_day = WINDOW_SIZE
             self.balance = INITIAL_PORTFOLIO_BALANCE
             self.allocation = INITIAL_PORTFOLIO_ALLOCATION_PERCENTAGE_STOCKS
-            tmf_price = self.tmf_df['Price'].to_numpy()
-            upro_price = self.upro_df['Price'].to_numpy()
+            tmf_price = self.tmf_df['Change'].to_numpy()
+            upro_price = self.upro_df['Change'].to_numpy()
 
             # get balanced history
             truncated_upro_history, truncated_tmf_history = self.get_balanced_history(compare_to_balance)
@@ -117,8 +116,8 @@ class PortfolioEnv(gym.Env):
         # get a vector of shape (2 * WINDOWS_SIZE,) of a concatenation of (UTF_price, TMF_price) of each day
         start_pos = self.current_day - WINDOW_SIZE
         end_pos = self.current_day
-        history = np.stack([self.upro_df['Price'].to_numpy()[start_pos:end_pos] / UPRO_MAX,
-                            self.tmf_df['Price'].to_numpy()[start_pos:end_pos]]).T.flatten() / TMF_MAX
+        history = np.stack([self.upro_df['Change'].to_numpy()[start_pos:end_pos] / UPRO_MAX,
+                            self.tmf_df['Change'].to_numpy()[start_pos:end_pos]]).T.flatten() / TMF_MAX
 
         return np.concatenate([np.array([self.balance / BALANCE_NORM_FACTOR, self.invested / BALANCE_NORM_FACTOR,
                                          self.num_stocks_upro / STOCK_NORM_FACTOR,
