@@ -8,7 +8,7 @@ tmf_df = pd.read_csv('./data/TMFSIM_preprocessed.csv')
 
 
 def train(to_index=6714):
-    env = make_vec_env(PortfolioEnv, env_kwargs={'upro_df': upro_df[:to_index], 'tmf_df': tmf_df[:to_index]}, n_envs=8,
+    env = make_vec_env(PortfolioEnv, env_kwargs={'upro_df': upro_df[:to_index], 'tmf_df': tmf_df[:to_index]}, n_envs=4,
                        monitor_dir='./logs')
     model = PPO('MlpPolicy', env, verbose=1, learning_rate=1e-4, batch_size=256, policy_kwargs={'net_arch': [dict(pi=[256, 256, 256, 256], vf=[256, 256, 256, 256])]})
     model.learn(total_timesteps=1000000.)
@@ -34,5 +34,5 @@ def infer(from_index=6714):
 
 
 if __name__ == '__main__':
-    train()
-    # infer(from_index=6714)
+    # train()
+    infer(from_index=6714)

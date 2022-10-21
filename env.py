@@ -10,7 +10,7 @@ N_DISCRETE_ACTIONS = 101
 # trading days
 WINDOW_SIZE = 10
 # action frequency in days
-STEP_SIZE = 10
+STEP_SIZE = 70
 
 
 class PortfolioEnv(gym.Env):
@@ -48,7 +48,7 @@ class PortfolioEnv(gym.Env):
         tmf_change = np.prod((self.tmf_df['Change'].to_numpy()[df_index - STEP_SIZE:df_index] + 100.) / 100.)
         upro_change = np.prod((self.upro_df['Change'].to_numpy()[df_index - STEP_SIZE:df_index] + 100.) / 100.)
         self.total_change *= ((tmf_change * (100. - self.allocation) + upro_change * self.allocation) / 100.)
-        reward = self.total_change
+        reward = self.total_change / 1000.
 
         if self.current_day >= self.end_day:
             self.done = True
@@ -149,5 +149,6 @@ if __name__ == '__main__':
         reward = run(random_action=True)
         rewards.append(reward)
     print(np.mean(rewards))
+    print(sum(reward))
 
 # See PyCharm help at https://www.jetbrains.com/help/pycharm/
