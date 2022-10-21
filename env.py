@@ -11,15 +11,12 @@ N_DISCRETE_ACTIONS = 101
 # trading days
 WINDOW_SIZE = 10
 # action frequency in days
-STEP_SIZE = 1
+STEP_SIZE = 70
 # normalize the data
 BALANCE_NORM_FACTOR = 1e8
 STOCK_NORM_FACTOR = 2e5
 UPRO_MAX = 23.28
 TMF_MAX = 19.02
-
-
-
 
 
 class PortfolioEnv(gym.Env):
@@ -102,13 +99,15 @@ class PortfolioEnv(gym.Env):
             # get balanced history
             truncated_upro_history, truncated_tmf_history = self.get_balanced_history(compare_to_balance)
             default_allocation_balance = tmf_price[WINDOW_SIZE:] * truncated_tmf_history + upro_price[
-                                                                              WINDOW_SIZE:] * truncated_upro_history
+                                                                                           WINDOW_SIZE:] * truncated_upro_history
 
             truncated_tmf_history = np.repeat(np.array(self.num_tmf_history), STEP_SIZE)[:self.end_day - WINDOW_SIZE]
             truncated_upro_history = np.repeat(np.array(self.num_upro_history), STEP_SIZE)[:self.end_day - WINDOW_SIZE]
-            agent_balance = tmf_price[WINDOW_SIZE:] * truncated_tmf_history + upro_price[WINDOW_SIZE:] * truncated_upro_history
-            plt.plot(agent_balance)
-            plt.plot(default_allocation_balance)
+            agent_balance = tmf_price[WINDOW_SIZE:] * truncated_tmf_history + upro_price[
+                                                                              WINDOW_SIZE:] * truncated_upro_history
+            plt.plot(agent_balance, label='agent')
+            plt.plot(default_allocation_balance, label='balanced')
+            plt.legend()
             plt.show()
             pass
         else:
@@ -121,7 +120,8 @@ class PortfolioEnv(gym.Env):
         history = np.stack([self.upro_df['Price'].to_numpy()[start_pos:end_pos] / UPRO_MAX,
                             self.tmf_df['Price'].to_numpy()[start_pos:end_pos]]).T.flatten() / TMF_MAX
 
-        return np.concatenate([np.array([self.balance / BALANCE_NORM_FACTOR, self.invested / BALANCE_NORM_FACTOR, self.num_stocks_upro / STOCK_NORM_FACTOR,
+        return np.concatenate([np.array([self.balance / BALANCE_NORM_FACTOR, self.invested / BALANCE_NORM_FACTOR,
+                                         self.num_stocks_upro / STOCK_NORM_FACTOR,
                                          self.num_stocks_tmf / STOCK_NORM_FACTOR, self.allocation / 100.]), history])
 
     def get_balanced_history(self, compare_to_balance=45.):
