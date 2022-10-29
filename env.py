@@ -10,7 +10,7 @@ N_DISCRETE_ACTIONS = 101
 # trading days
 WINDOW_SIZE = 10
 # action frequency in days
-STEP_SIZE = 70
+STEP_SIZE = 1
 
 
 class PortfolioEnv(gym.Env):
@@ -89,6 +89,7 @@ class PortfolioEnv(gym.Env):
             plt.plot(agent_balance, label='agent')
             plt.plot(default_allocation_balance, label='balanced')
             plt.legend()
+            plt.title(figname if figname else 'agent vs balanced')
             plt.show()
             if savefig and figname is not None:
                 plt.savefig(figname)
