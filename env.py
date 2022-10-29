@@ -90,9 +90,9 @@ class PortfolioEnv(gym.Env):
             plt.plot(default_allocation_balance, label='balanced')
             plt.legend()
             plt.title(figname if figname else 'agent vs balanced')
-            plt.show()
             if savefig and figname is not None:
                 plt.savefig(figname)
+            plt.show()
         else:
             print("render can be called only in the end of an episode")
 
