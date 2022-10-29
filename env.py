@@ -88,7 +88,7 @@ class PortfolioEnv(gym.Env):
         remainder = self.balance - (upro_price * num_stocks_upro + tmf_price * num_stocks_tmf)
         return num_stocks_upro, num_stocks_tmf, remainder
 
-    def render(self, mode='human', close=False, compare_to_balance=45.):
+    def render(self, mode='human', close=False, compare_to_balance=45., savefig=False, figname=None):
         if self.done:
             self.current_day = WINDOW_SIZE
             self.balance = INITIAL_PORTFOLIO_BALANCE
@@ -109,6 +109,8 @@ class PortfolioEnv(gym.Env):
             plt.plot(default_allocation_balance, label='balanced')
             plt.legend()
             plt.show()
+            if savefig and figname:
+                plt.savefig(figname + '.png')
             pass
         else:
             print("render can be called only in the end of an episode")
