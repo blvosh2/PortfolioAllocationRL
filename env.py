@@ -66,7 +66,7 @@ class PortfolioEnv(gym.Env):
         state = self.get_state()
         return state
 
-    def render(self, mode='human', close=False, compare_to_balance=45.):
+    def render(self, mode='human', close=False, compare_to_balance=45., savefig=False, figname=None):
         if self.done:
             self.current_day = WINDOW_SIZE
             self.allocation = INITIAL_PORTFOLIO_ALLOCATION_PERCENTAGE_STOCKS
@@ -90,7 +90,8 @@ class PortfolioEnv(gym.Env):
             plt.plot(default_allocation_balance, label='balanced')
             plt.legend()
             plt.show()
-            pass
+            if savefig and figname is not None:
+                plt.savefig(figname)
         else:
             print("render can be called only in the end of an episode")
 
