@@ -6,7 +6,8 @@ import gym
 
 INITIAL_PORTFOLIO_ALLOCATION_PERCENTAGE_STOCKS = 40.
 # USD value
-N_DISCRETE_ACTIONS = 101
+# actions : [+5% upro to tmf, -5% upro to tmf, +10% upro to tmf, -10% upro to tmf, do nothing, rebalance]
+N_DISCRETE_ACTIONS = 6
 # trading days
 WINDOW_SIZE = 10
 # action frequency in days
@@ -41,7 +42,24 @@ class PortfolioEnv(gym.Env):
     def step(self, action):
         # Execute one time step within the environment
         info = {'none': None}
-        self.allocation = action
+        if action == 0:
+            self.allocation += 5.
+        elif action == 1:
+            self.allocation -= 5.
+        elif action == 2:
+            self.allocation += 10.
+        elif action == 3:
+            self.allocation -= 10.
+        elif action == 4:
+            pass
+        elif action == 5:
+            self.allocation = INITIAL_PORTFOLIO_ALLOCATION_PERCENTAGE_STOCKS
+
+        if self.allocation > 100.:
+            self.allocation = 100.
+        elif self.allocation < 0.:
+            self.allocation = 0.
+
         self.allocation_history.append(self.allocation)
         self.current_day += STEP_SIZE
         df_index = self.current_day if self.current_day < self.end_day else self.end_day - 1
