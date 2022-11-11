@@ -11,7 +11,9 @@ N_DISCRETE_ACTIONS = 6
 # trading days
 WINDOW_SIZE = 10
 # action frequency in days
-STEP_SIZE = 1
+STEP_SIZE = 70
+# for random environment we define a episode length
+EPISODE_LENGTH = 3000
 
 
 class PortfolioEnv(gym.Env):
@@ -23,6 +25,7 @@ class PortfolioEnv(gym.Env):
         # Define action and observation space
         # They must be gym.spaces objects
         # Example when using discrete actions:
+        self.current_step = 0
         self.step_size = step_size
         self.allocation = None
         self.done = False
@@ -41,6 +44,8 @@ class PortfolioEnv(gym.Env):
         self.observation_space = gym.spaces.Box(low=0, high=high, shape=(1 + 2 * WINDOW_SIZE,))
 
     def step(self, action):
+        self.current_step += 1
+        self.current_day = np.random.randint(WINDOW_SIZE, self.end_day - self.step_size - 1)
         # Execute one time step within the environment
         info = {'none': None}
         if action == 0:
@@ -69,7 +74,7 @@ class PortfolioEnv(gym.Env):
         self.total_change *= ((tmf_change * (100. - self.allocation) + upro_change * self.allocation) / 100.)
         reward = self.total_change / 1000.
 
-        if self.current_day >= self.end_day:
+        if self.current_step >= EPISODE_LENGTH:
             self.done = True
             return np.zeros(self.observation_space.shape), reward, self.done, info
 
@@ -78,6 +83,7 @@ class PortfolioEnv(gym.Env):
 
     def reset(self, **kwargs):
         # Reset the state of the environment to an initial state
+        self.current_step = 0
         self.done = False
         self.current_day = WINDOW_SIZE
         self.allocation = INITIAL_PORTFOLIO_ALLOCATION_PERCENTAGE_STOCKS
