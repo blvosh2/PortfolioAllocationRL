@@ -18,11 +18,12 @@ class PortfolioEnv(gym.Env):
     """Custom Environment that follows gym interface"""
     metadata = {'render.modes': ['human']}
 
-    def __init__(self, upro_df, tmf_df):
+    def __init__(self, upro_df, tmf_df, step_size=STEP_SIZE):
         super(PortfolioEnv, self).__init__()
         # Define action and observation space
         # They must be gym.spaces objects
         # Example when using discrete actions:
+        self.step_size = step_size
         self.allocation = None
         self.done = False
         self.num_stocks_tmf = 0
@@ -61,10 +62,10 @@ class PortfolioEnv(gym.Env):
             self.allocation = 0.
 
         self.allocation_history.append(self.allocation)
-        self.current_day += STEP_SIZE
+        self.current_day += self.step_size
         df_index = self.current_day if self.current_day < self.end_day else self.end_day - 1
-        tmf_change = np.prod((self.tmf_df['Change'].to_numpy()[df_index - STEP_SIZE:df_index] + 100.) / 100.)
-        upro_change = np.prod((self.upro_df['Change'].to_numpy()[df_index - STEP_SIZE:df_index] + 100.) / 100.)
+        tmf_change = np.prod((self.tmf_df['Change'].to_numpy()[df_index - self.step_size:df_index] + 100.) / 100.)
+        upro_change = np.prod((self.upro_df['Change'].to_numpy()[df_index - self.step_size:df_index] + 100.) / 100.)
         self.total_change *= ((tmf_change * (100. - self.allocation) + upro_change * self.allocation) / 100.)
         reward = self.total_change / 1000.
 
@@ -97,9 +98,9 @@ class PortfolioEnv(gym.Env):
                                                                                               WINDOW_SIZE:] * truncated_upro_history) / 100.).tolist()
             default_allocation_balance = np.cumprod(default_allocation_balance)
 
-            truncated_upro_history = np.repeat(np.array(self.allocation_history), STEP_SIZE)[
+            truncated_upro_history = np.repeat(np.array(self.allocation_history), self.step_size)[
                                      :self.end_day - WINDOW_SIZE]
-            truncated_tmf_history = np.repeat((100. - np.array(self.allocation_history)), STEP_SIZE)[
+            truncated_tmf_history = np.repeat((100. - np.array(self.allocation_history)), self.step_size)[
                                     :self.end_day - WINDOW_SIZE]
             agent_balance = ((tmf_change[WINDOW_SIZE:] * truncated_tmf_history + upro_change[
                                                                                  WINDOW_SIZE:] * truncated_upro_history) / 100.).tolist()
@@ -126,16 +127,16 @@ class PortfolioEnv(gym.Env):
     def get_balanced_history(self, compare_to_balance=45.):
         truncated_upro_history = None
         truncated_tmf_history = None
-        stock_env = PortfolioEnv(upro_df=self.upro_df, tmf_df=self.tmf_df)
+        stock_env = PortfolioEnv(upro_df=self.upro_df, tmf_df=self.tmf_df, step_size=self.step_size)
         stock_env.reset(seed=0)
         done = False
         while not done:
             action = compare_to_balance
             next_state, reward, done, _ = stock_env.step(action=action)
             if done:
-                truncated_upro_history = np.repeat(np.array(stock_env.allocation_history), STEP_SIZE)[
+                truncated_upro_history = np.repeat(np.array(stock_env.allocation_history), self.step_size)[
                                          :self.end_day - WINDOW_SIZE]
-                truncated_tmf_history = np.repeat((100. - np.array(stock_env.allocation_history)), STEP_SIZE)[
+                truncated_tmf_history = np.repeat((100. - np.array(stock_env.allocation_history)), self.step_size)[
                                         :self.end_day - WINDOW_SIZE]
 
         return truncated_upro_history, truncated_tmf_history
