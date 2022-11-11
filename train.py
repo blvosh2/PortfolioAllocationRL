@@ -9,7 +9,7 @@ tmf_df = pd.read_csv('./data/TMFSIM_preprocessed.csv')
 
 
 def train(to_index=6714, checkpoint_name='ppo_portfolio', step_size=70):
-    env = make_vec_env(PortfolioEnv, env_kwargs={'upro_df': upro_df[:to_index], 'tmf_df': tmf_df[:to_index]}, n_envs=8,
+    env = make_vec_env(PortfolioEnv, env_kwargs={'upro_df': upro_df[:to_index], 'tmf_df': tmf_df[:to_index], 'step_size': step_size}, n_envs=8,
                        monitor_dir='./logs')
     model = PPO('MlpPolicy', env, verbose=1, learning_rate=1e-4, batch_size=256, policy_kwargs={'net_arch': [dict(pi=[256, 256, 256, 256], vf=[256, 256, 256, 256])]})
     model.learn(total_timesteps=1000000. * 5)
@@ -18,7 +18,7 @@ def train(to_index=6714, checkpoint_name='ppo_portfolio', step_size=70):
 
 def infer(from_index=6714, checkpoint_name='ppo_portfolio', step_size=70):
     model = PPO.load(checkpoint_name)
-    env = PortfolioEnv(upro_df=upro_df[from_index:], tmf_df=tmf_df[from_index:])
+    env = PortfolioEnv(upro_df=upro_df[from_index:], tmf_df=tmf_df[from_index:], step_size=step_size)
     obs = env.reset()
     rewards = []
     actions = []
