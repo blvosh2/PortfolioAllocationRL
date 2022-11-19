@@ -13,7 +13,7 @@ WINDOW_SIZE = 10
 # action frequency in days
 STEP_SIZE = 70
 # for random environment we define a episode length
-EPISODE_LENGTH = 3000
+EPISODE_LENGTH = 350
 
 
 class PortfolioEnv(gym.Env):
