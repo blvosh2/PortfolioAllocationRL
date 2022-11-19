@@ -13,7 +13,9 @@ WINDOW_SIZE = 10
 # action frequency in days
 STEP_SIZE = 70
 # for random environment we define a episode length
-EPISODE_LENGTH = 3000
+EPISODE_LENGTH = 350
+# window size to calculate std in order to minimize drawdown
+DRAWDOWN_WINDOW = 3
 
 
 class PortfolioEnv(gym.Env):
@@ -26,6 +28,7 @@ class PortfolioEnv(gym.Env):
         # They must be gym.spaces objects
         # Example when using discrete actions:
         self.current_step = 0
+        self.reward_history = []
         self.step_size = step_size
         self.allocation = None
         self.done = False
@@ -73,6 +76,11 @@ class PortfolioEnv(gym.Env):
         upro_change = np.prod((self.upro_df['Change'].to_numpy()[df_index - self.step_size:df_index] + 100.) / 100.)
         self.total_change *= ((tmf_change * (100. - self.allocation) + upro_change * self.allocation) / 100.)
         reward = self.total_change / 1000.
+        self.reward_history.append(reward)
+
+        if len(self.reward_history) > DRAWDOWN_WINDOW:
+            drawdown = np.std(self.reward_history[-DRAWDOWN_WINDOW:])
+            reward -= drawdown / 1000.
 
         if self.current_step >= EPISODE_LENGTH:
             self.done = True
