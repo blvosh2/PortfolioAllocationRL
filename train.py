@@ -23,7 +23,7 @@ def infer(from_index=6714, checkpoint_name='ppo_portfolio', step_size=70):
     rewards = []
     actions = []
     for i in range(100000):
-        action, _states = model.predict(obs, deterministic=True)
+        action, _states = model.predict(obs)
         obs, reward, dones, info = env.step(action)
         actions.append(action)
         rewards.append(reward)
