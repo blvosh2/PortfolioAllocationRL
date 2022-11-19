@@ -18,7 +18,7 @@ def train(to_index=6714, checkpoint_name='ppo_portfolio', step_size=70):
 
 def infer(from_index=6714, checkpoint_name='ppo_portfolio', step_size=70):
     model = PPO.load(checkpoint_name)
-    env = PortfolioEnv(upro_df=upro_df[from_index:], tmf_df=tmf_df[from_index:], step_size=step_size)
+    env = PortfolioEnv(upro_df=upro_df[from_index:], tmf_df=tmf_df[from_index:], step_size=step_size, deterministic=True)
     obs = env.reset()
     rewards = []
     actions = []
