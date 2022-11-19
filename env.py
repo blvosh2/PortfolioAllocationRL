@@ -22,11 +22,12 @@ class PortfolioEnv(gym.Env):
     """Custom Environment that follows gym interface"""
     metadata = {'render.modes': ['human']}
 
-    def __init__(self, upro_df, tmf_df, step_size=STEP_SIZE):
+    def __init__(self, upro_df, tmf_df, step_size=STEP_SIZE, deterministic=False):
         super(PortfolioEnv, self).__init__()
         # Define action and observation space
         # They must be gym.spaces objects
         # Example when using discrete actions:
+        self.deterministic = deterministic
         self.current_step = 0
         self.reward_history = []
         self.step_size = step_size
@@ -48,7 +49,6 @@ class PortfolioEnv(gym.Env):
 
     def step(self, action):
         self.current_step += 1
-        self.current_day = np.random.randint(WINDOW_SIZE, self.end_day - self.step_size - 1)
         # Execute one time step within the environment
         info = {'none': None}
         if action == 0:
@@ -85,6 +85,9 @@ class PortfolioEnv(gym.Env):
         if self.current_step >= EPISODE_LENGTH:
             self.done = True
             return np.zeros(self.observation_space.shape), reward, self.done, info
+
+        if not self.deterministic:
+            self.current_day = np.random.randint(WINDOW_SIZE, self.end_day - self.step_size - 1)
 
         next_state = self.get_state()
         return next_state, reward, self.done, info
@@ -141,7 +144,7 @@ class PortfolioEnv(gym.Env):
     def get_balanced_history(self, compare_to_balance=45.):
         truncated_upro_history = None
         truncated_tmf_history = None
-        stock_env = PortfolioEnv(upro_df=self.upro_df, tmf_df=self.tmf_df, step_size=self.step_size)
+        stock_env = PortfolioEnv(upro_df=self.upro_df, tmf_df=self.tmf_df, step_size=self.step_size, deterministic=True)
         stock_env.reset(seed=0)
         done = False
         while not done:
