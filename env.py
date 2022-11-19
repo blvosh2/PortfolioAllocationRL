@@ -82,7 +82,7 @@ class PortfolioEnv(gym.Env):
             drawdown = np.std(self.reward_history[-DRAWDOWN_WINDOW:])
             reward -= drawdown / 1000.
 
-        if self.current_step >= EPISODE_LENGTH:
+        if self.current_step >= EPISODE_LENGTH or self.current_day >= self.end_day:
             self.done = True
             return np.zeros(self.observation_space.shape), reward, self.done, info
 
