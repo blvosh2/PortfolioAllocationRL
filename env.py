@@ -74,7 +74,7 @@ class PortfolioEnv(gym.Env):
         self.total_change *= ((tmf_change * (100. - self.allocation) + upro_change * self.allocation) / 100.)
         reward = self.total_change / 1000.
 
-        if self.current_step >= EPISODE_LENGTH:
+        if self.current_step >= EPISODE_LENGTH or self.current_day >= self.end_day:
             self.done = True
             return np.zeros(self.observation_space.shape), reward, self.done, info
 
