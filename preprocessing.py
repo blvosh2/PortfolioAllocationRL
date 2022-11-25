@@ -9,6 +9,7 @@ def create_data(Path_to_csv, start_price, output_file_name):
     for idx in reversed(range(df.index.stop - 1)):
         df.at[idx, 'Price'] = (df.at[idx + 1, 'Price'] / (float(df.at[idx + 1, 'Change'][:-1]) / 100 + 1))
 
+    df.Change = df.Change.apply(lambda x: float(x[:-1]))
     df.to_csv(f'./data/{output_file_name}.csv')
     pass
 
