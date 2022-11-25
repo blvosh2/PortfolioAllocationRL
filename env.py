@@ -11,7 +11,7 @@ N_DISCRETE_ACTIONS = 6
 # trading days
 WINDOW_SIZE = 10
 # action frequency in days
-STEP_SIZE = 70
+STEP_SIZE = 20
 # for random environment we define a episode length
 EPISODE_LENGTH = 350
 # window size to calculate std in order to minimize drawdown
@@ -22,11 +22,12 @@ class PortfolioEnv(gym.Env):
     """Custom Environment that follows gym interface"""
     metadata = {'render.modes': ['human']}
 
-    def __init__(self, upro_df, tmf_df, step_size=STEP_SIZE, deterministic=False):
+    def __init__(self, upro_df, tmf_df, step_size=STEP_SIZE, deterministic=False, drawdown=False):
         super(PortfolioEnv, self).__init__()
         # Define action and observation space
         # They must be gym.spaces objects
         # Example when using discrete actions:
+        self.drawdown = drawdown
         self.deterministic = deterministic
         self.current_step = 0
         self.reward_history = []
@@ -78,7 +79,7 @@ class PortfolioEnv(gym.Env):
         reward = self.total_change / 1000.
         self.reward_history.append(reward)
 
-        if len(self.reward_history) > DRAWDOWN_WINDOW:
+        if len(self.reward_history) > DRAWDOWN_WINDOW and self.drawdown is True:
             drawdown = np.std(self.reward_history[-DRAWDOWN_WINDOW:])
             reward -= drawdown / 1000.
 
