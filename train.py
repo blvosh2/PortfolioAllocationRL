@@ -6,9 +6,9 @@ import pandas as pd
 import click
 
 
-def train(upro_df, tmf_df, checkpoint_name='ppo_portfolio', step_size=70):
+def train(upro_df, tmf_df, checkpoint_name='ppo_portfolio', step_size=70, drawdown=False):
     env = make_vec_env(PortfolioEnv,
-                       env_kwargs={'upro_df': upro_df, 'tmf_df': tmf_df, 'step_size': step_size},
+                       env_kwargs={'upro_df': upro_df, 'tmf_df': tmf_df, 'step_size': step_size, 'drawdown': drawdown},
                        n_envs=8,
                        monitor_dir='./logs')
     model = PPO('MlpPolicy', env, verbose=1, learning_rate=1e-4, batch_size=256,
@@ -40,16 +40,17 @@ def infer(upro_df, tmf_df, checkpoint_name='ppo_portfolio', step_size=70):
 @click.option('-t', '--istrain', is_flag=True, default=False, help='Train the model')
 @click.option('-i', '--isinfer', is_flag=True, default=False, help='Infer')
 @click.option('--istest', is_flag=True, default=False, help='Test')
+@click.option('-d', '--drawdown', is_flag=True, default=False, help='drawdown punishment')
 @click.option('-n', '--checkpoint_name', type=str, default='ppo_portfolio', help='checkpoint name')
 @click.option('-s', '--step-size', type=int, default=70, help='step size of the environment')
-def main(istrain=False, isinfer=False, istest=False, checkpoint_name='ppo_portfolio', step_size=70):
+def main(istrain=False, isinfer=False, istest=False, checkpoint_name='ppo_portfolio', step_size=70, drawdown=False):
     upro_df = pd.read_csv('./data/UPRO_final.csv')
     tmf_df = pd.read_csv('./data/TMF_final.csv')
     tmf_train, tmf_val, tmf_test = split_df(tmf_df)
     upro_train, upro_val, upro_test = split_df(upro_df)
 
     if istrain:
-        train(upro_df=upro_train, tmf_df=tmf_train, checkpoint_name=checkpoint_name, step_size=step_size)
+        train(upro_df=upro_train, tmf_df=tmf_train, checkpoint_name=checkpoint_name, step_size=step_size, drawdown=drawdown)
     if isinfer:
         infer(upro_df=upro_val, tmf_df=tmf_val, checkpoint_name=checkpoint_name, step_size=step_size)
     if istest:
